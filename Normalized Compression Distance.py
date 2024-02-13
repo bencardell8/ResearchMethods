@@ -2,14 +2,18 @@ import zlib
 
 #Data to be classified
 seq1 = "ABCDEFGHIJK".encode('latin-1')
-seq2 = "AABBCCDDEEFF".encode('latin-1')
+seq2 = "ABCDEFGHIJK".encode('latin-1')
 
-z1 = len(zlib.compress(seq1))
-z2 = len(zlib.compress(seq2))
-print(f'Compressed size: Z(seq1) = {z1}, Z(seq2)={z2}')
+#Compresses strings, retrieves lengths
+seq1_compressed = len(zlib.compress(seq1))
+seq2_compressed = len(zlib.compress(seq2))
+print(f'Uncompressed size of sequence 1 = {seq1}')
+print(f'Compressed size of sequence 1 = {seq1_compressed}')
+print(f'Compressed size of sequence 2 = {seq2_compressed}')
 
-z12 = len(zlib.compress(seq1 + seq2))
-print(f'Compressed size: Z(seq1+seq2) = {z12}')
+#Compressed size of concatentated strings (presumably one after the other)
+seqs_compressed = len(zlib.compress(seq1 + seq2))
+print(f'Compressed size of sequence 1 + 2 (concatenated) = {seqs_compressed}')
 
-ncd = (z12 - min(z1,z2)) / max(z1,z2)
+ncd = (seqs_compressed - min(seq1_compressed,seq2_compressed)) / max(seq1_compressed,seq2_compressed)
 print(f'NCD(seq1, seq2) = {ncd}') #Prints normalized compression distance
