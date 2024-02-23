@@ -1,12 +1,13 @@
 import os
 import base64
 import pandas as pd
+import numpy as np
 import zlib
 import gzip
 import bz2
+from PIL import Image
 import timeit
 from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KDTree as kdt
 from zipfile import ZipFile as zf
 
 
@@ -50,6 +51,23 @@ def split_dataframe_to_train_test(df: pd.DataFrame, col: str, test_frac=0.20, va
         raise ValueError("val_frac must be above 0")
 
 
+def img_vectorise(name):
+    img_name = ""
+    if os.path.exists(img_data_dir + name + ".png"):
+        img_name = name + ".png"
+    elif os.path.exists(img_data_dir + name + ".jpg"):
+        img_name = name + ".jpg"
+    else:
+        FileNotFoundError("No file with " + name + " found.")
+
+    img = Image.open(img_data_dir+img_name)
+    img_vector = np.asarray(img)
+    print(f"Vector {img_vector}")
+    vector_string = np.array2string(img_vector)
+
+    return vector_string
+
+
 def img_stringify(name):
     img_name = ""
     if os.path.exists(img_data_dir + name + ".png"):
@@ -84,28 +102,30 @@ def normalised_compression_distance(string_1, string_2, compressed_string_2_size
     return ncd
 
 
-
-
-
 def zip_files(files_to_zip):
     with zf('zipped_files.zip', 'w') as zipper:
         # writing each file one by one
         for file in files_to_zip:
             zipper.write(file)
 
+# Get image -> Convert to vector -> Convert to String -> Compress/Ben's code ->
+
 
 def main():
-    data_1: pd.DataFrame = read_data_from_csv(csv_data_1_file, columns_to_drop="Type2")
-    data_2: pd.DataFrame = read_data_from_csv(csv_data_2_file, columns_to_drop="Type2")
+    data_1: pd.DataFrame = read_data_from_csv(csv_data_1_file)
+    data_2: pd.DataFrame = read_data_from_csv(csv_data_2_file)
     data_1.drop(data_1[(data_1["Type1"] == "Dragon") | (data_1["Type1"] == "Fairy") | (data_1["Type1"] == "Ice") |
                        (data_1["Type1"] == "Ghost")].index, inplace=True)
     data_2.drop(data_2[(data_2["Type1"] == "Dragon") | (data_2["Type1"] == "Fairy") | (data_2["Type1"] == "Ice") |
                        (data_2["Type1"] == "Ghost")].index, inplace=True)
     data_1.reset_index(drop=True, inplace=True)
     data_2.reset_index(drop=True, inplace=True)
-    data_1["ImgStr"] = data_1["Name"].apply(img_stringify)
-    data_2["ImgStr"] = data_2["Name"].apply(img_stringify)
     ncds = pd.DataFrame(data=data_1["Type1"])
+    # data_1["ImgStr"] = data_1["Name"].apply(img_stringify)
+    # data_2["ImgStr"] = data_2["Name"].apply(img_stringify)
+    data_1["ImgStr"] = data_1["Name"].apply(img_vectorise)
+    data_2["ImgStr"] = data_2["Name"].apply(img_vectorise)
+    print(data_1)
     # print(data_1)
     # unique_labels = pd.unique(data_1["Type1"])
     # group_dict = {}
@@ -119,9 +139,8 @@ def main():
             string = data_2.iloc[i, 2]
             compressed_string_size = len(zlib.compress(string))
             ncds["NCD"] = data_1["ImgStr"].apply(normalised_compression_distance, string_2=string, compressed_string_2_size=compressed_string_size)
-            smallest_rows = ncds.nsmallest(k, "NCD")
-            print(smallest_rows)
-
+            smallest_rows = ncds.nsmallest(k, "NCD", keep="all")
+            # print(smallest_rows)
 
 
 if __name__ == '__main__':
