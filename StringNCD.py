@@ -26,12 +26,19 @@ booksDS = pd.read_csv('books.csv')
 X= booksDS['summary'] 
 y= booksDS['genre'] 
 
-#Train-test split. Random_state used for reproducability or results. Test_size of 0.2 means test size is 0.2 of population.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1, shuffle=True)
+
+min_count = min(y.value_counts())
+
+#trim dataframe down to balanced number of data
+balanced_booksDS = pd.concat([booksDS[booksDS['genre'] == label].sample(min_count) for label in booksDS['genre'].unique()])
+
+
+#Train-test split. Random_state used for reproducability of results. Test_size of 0.2 means test size is 0.2 of population.
+X_train, X_test, y_train, y_test = train_test_split(balanced_booksDS[['summary']], balanced_booksDS['genre'], test_size=0.2, random_state=1, shuffle=True, stratify=balanced_booksDS['genre'])
 
 
 # printing out train and test sets 
-print('X_train : ') 
+""" print('X_train : ') 
 print(X_train.head()) 
 print('') 
 print('X_test : ') 
@@ -42,3 +49,15 @@ print(y_train.head())
 print('') 
 print('y_test : ') 
 print(y_test.head())
+ """
+#print(y.value_counts())
+#print(y_train.value_counts())
+#print(y_train.iloc[1])
+#print(balanced_booksDS['genre'].value_counts())
+#print(booksDS['genre'].value_counts())
+
+#Prints train and test data counts
+print(y_train.value_counts())
+print(y_test.value_counts())
+
+#print(y_train.iloc[1])
