@@ -8,6 +8,8 @@ import bz2
 from PIL import Image
 import timeit
 from sklearn.model_selection import train_test_split
+from sklearn import metrics
+import matplotlib.pyplot as plt
 from zipfile import ZipFile as zf
 
 
@@ -62,44 +64,61 @@ def img_vectorise(name):
 
     img = Image.open(img_data_dir+img_name)
     img_vector = np.asarray(img)
-    print(f"Vector {img_vector}")
-    vector_string = np.array2string(img_vector)
+    image_1d = img_vector.reshape(-1)
+    # print(f"Vector {img_vector}")
+    # vector_string = np.array2string(img_vector)
+    vector_string = ''.join([str(num) for num in image_1d])
+    # print(vector_string)
 
     return vector_string
 
 
-def img_stringify(name):
-    img_name = ""
-    if os.path.exists(img_data_dir + name + ".png"):
-        img_name = name+".png"
-    elif os.path.exists(img_data_dir + name + ".jpg"):
-        img_name = name+".jpg"
-    else:
-        FileNotFoundError("No file with " + name + " found.")
+# def img_stringify(name):
+#     img_name = ""
+#     if os.path.exists(img_data_dir + name + ".png"):
+#         img_name = name+".png"
+#     elif os.path.exists(img_data_dir + name + ".jpg"):
+#         img_name = name+".jpg"
+#     else:
+#         FileNotFoundError("No file with " + name + " found.")
+#
+#     with open(img_data_dir+img_name, "rb") as image2string:
+#         img_str = base64.b64encode(image2string.read())
+#
+#     return img_str
 
-    with open(img_data_dir+img_name, "rb") as image2string:
-        img_str = base64.b64encode(image2string.read())
 
-    return img_str
-
-
-def normalised_compression_distance(string_1, string_2, compressed_string_2_size):
+def normalised_compression_distance(string_1, string_2, compressed_2_size):
     compressed_1_size = None
     compressed_1_2_size = None
+    encoded_string_1 = string_1.encode()
+    encoded_string_1_2 = (string_1+string_2).encode()
+
     if zip_type == "zlib":
-        compressed_1_size = len(zlib.compress(string_1))
-        compressed_1_2_size = len(zlib.compress(string_1 + string_2))
+        compressed_1_size = len(zlib.compress(encoded_string_1))
+        compressed_1_2_size = len(zlib.compress(encoded_string_1_2))
     elif zip_type == "gzip":
-        compressed_1_size = len(gzip.compress(string_1))
-        compressed_1_2_size = len(gzip.compress(string_1 + string_2))
+        compressed_1_size = len(gzip.compress(encoded_string_1))
+        compressed_1_2_size = len(gzip.compress(encoded_string_1_2))
     elif zip_type == "bz2":
-        compressed_1_size = len(bz2.compress(string_1))
-        compressed_1_2_size = len(bz2.compress(string_1 + string_2))
+        compressed_1_size = len(bz2.compress(encoded_string_1))
+        compressed_1_2_size = len(bz2.compress(encoded_string_1_2))
     else:
         ValueError(f"{zip_type} not a valid format")
 
-    ncd = (compressed_1_2_size - min(compressed_1_size, compressed_string_2_size)) / max(compressed_1_size, compressed_string_2_size)
+    ncd = (compressed_1_2_size - min(compressed_1_size, compressed_2_size)) / max(compressed_1_size, compressed_2_size)
     return ncd
+
+
+def get_label(rows: pd.DataFrame, column_name: str):
+    label = ""
+    if len(rows[column_name].unique()) == len(rows):
+        label = rows.iloc[0, 0]
+    else:
+        most_frequents = rows[column_name].mode()
+        label = most_frequents[0]
+
+    return label
 
 
 def zip_files(files_to_zip):
@@ -114,15 +133,20 @@ def zip_files(files_to_zip):
 def main():
     data_1: pd.DataFrame = read_data_from_csv(csv_data_1_file)
     data_2: pd.DataFrame = read_data_from_csv(csv_data_2_file)
-    data_1.drop(data_1[(data_1["Type1"] == "Dragon") | (data_1["Type1"] == "Fairy") | (data_1["Type1"] == "Ice") |
-                       (data_1["Type1"] == "Ghost")].index, inplace=True)
-    data_2.drop(data_2[(data_2["Type1"] == "Dragon") | (data_2["Type1"] == "Fairy") | (data_2["Type1"] == "Ice") |
-                       (data_2["Type1"] == "Ghost")].index, inplace=True)
+    # Fire, Water, Grass, Rock
+    # data_1.drop(data_1[(data_1["Type1"] == "Dragon") | (data_1["Type1"] == "Fairy") | (data_1["Type1"] == "Ice") |
+    #                    (data_1["Type1"] == "Ghost")].index, inplace=True)
+    # data_2.drop(data_2[(data_2["Type1"] == "Dragon") | (data_2["Type1"] == "Fairy") | (data_2["Type1"] == "Ice") |
+    #                    (data_2["Type1"] == "Ghost")].index, inplace=True)
+    data_1.drop(data_1[(data_1["Type1"] != "Rock") & (data_1["Type1"] != "Fire") & (data_1["Type1"] != "Water") &
+                       (data_1["Type1"] != "Grass")].index, inplace=True)
+    data_2.drop(data_2[(data_2["Type1"] != "Rock") & (data_2["Type1"] != "Fire") & (data_2["Type1"] != "Water") &
+                       (data_2["Type1"] != "Grass")].index, inplace=True)
+
     data_1.reset_index(drop=True, inplace=True)
     data_2.reset_index(drop=True, inplace=True)
+
     ncds = pd.DataFrame(data=data_1["Type1"])
-    # data_1["ImgStr"] = data_1["Name"].apply(img_stringify)
-    # data_2["ImgStr"] = data_2["Name"].apply(img_stringify)
     data_1["ImgStr"] = data_1["Name"].apply(img_vectorise)
     data_2["ImgStr"] = data_2["Name"].apply(img_vectorise)
     print(data_1)
@@ -133,14 +157,25 @@ def main():
     #     group_dict[label] = data_1.loc[data_1["Type1"] == label, "ImgStr"]
     #     # Shuffles the data
     #     # group_dict[label] = group_dict[label].sample(frac=1).reset_index(drop=True)
-
+    predicted_labels = []
     for i in range(len(data_2)):
         if zip_type == "zlib":
-            string = data_2.iloc[i, 2]
-            compressed_string_size = len(zlib.compress(string))
-            ncds["NCD"] = data_1["ImgStr"].apply(normalised_compression_distance, string_2=string, compressed_string_2_size=compressed_string_size)
+            string: str = data_2.iloc[i, 2]
+            encoded_string = string.encode()
+            compressed_encoded_string = len(zlib.compress(encoded_string))
+            ncds["NCD"] = data_1["ImgStr"].apply(normalised_compression_distance, string_2=string,
+                                                 compressed_2_size=compressed_encoded_string)
             smallest_rows = ncds.nsmallest(k, "NCD", keep="all")
+            # print(f"\n{data_2.iloc[i, 0]} - {data_2.iloc[i, 1]}")
             # print(smallest_rows)
+            predicted_labels.append(get_label(smallest_rows, "Type1"))
+    # print(predicted_labels)
+    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=["Water", "Fire", "Grass", "Rock"])
+    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique())
+    # print(conf_mat)
+    print(f"Accuracy = {metrics.accuracy_score(data_2['Type1'], predicted_labels)}")
+    metrics.ConfusionMatrixDisplay.from_predictions(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique(), xticks_rotation="vertical")
+    plt.show()
 
 
 if __name__ == '__main__':
