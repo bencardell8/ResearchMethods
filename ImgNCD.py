@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from zipfile import ZipFile as zf
 
 
+csv_full_data_file = "pokemon.csv"
 csv_data_1_file = "gen_1.csv"
 csv_data_2_file = "gen_2.csv"
 img_data_dir = "img_data/"
@@ -127,10 +128,8 @@ def zip_files(files_to_zip):
         for file in files_to_zip:
             zipper.write(file)
 
-# Get image -> Convert to vector -> Convert to String -> Compress/Ben's code ->
 
-
-def main():
+def classify_one_gen():
     data_1: pd.DataFrame = read_data_from_csv(csv_data_1_file)
     data_2: pd.DataFrame = read_data_from_csv(csv_data_2_file)
     # Fire, Water, Grass, Rock
@@ -174,8 +173,54 @@ def main():
     # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique())
     # print(conf_mat)
     print(f"Accuracy = {metrics.accuracy_score(data_2['Type1'], predicted_labels)}")
-    metrics.ConfusionMatrixDisplay.from_predictions(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique(), xticks_rotation="vertical")
+    metrics.ConfusionMatrixDisplay.from_predictions(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique(),
+                                                    xticks_rotation="vertical")
     plt.show()
+    return
+
+
+def classify_any():
+    data: pd.DataFrame = read_data_from_csv(csv_full_data_file)
+    data.drop(columns="Type2", inplace=True)
+    data.drop(data[(data["Type1"] != "Rock") & (data["Type1"] != "Fire") & (data["Type1"] != "Water") &
+                   (data["Type1"] != "Grass")].index, inplace=True)
+    data.reset_index(drop=True, inplace=True)
+    train_data, test_data, val_data = split_dataframe_to_train_test(data, "Type1", 0.3)
+    print("train data : ")
+    print(train_data)
+    print("test data : ")
+    print(test_data)
+    ncds = pd.DataFrame(data=data["Type1"])
+    train_data["ImgStr"] = train_data["Name"].apply(img_vectorise)
+    test_data["ImgStr"] = test_data["Name"].apply(img_vectorise)
+
+    predicted_labels = []
+    for i in range(len(test_data)):
+        if zip_type == "zlib":
+            string: str = test_data.iloc[i, 2]
+            encoded_string = string.encode()
+            compressed_encoded_string = len(zlib.compress(encoded_string))
+            ncds["NCD"] = train_data["ImgStr"].apply(normalised_compression_distance, string_2=string,
+                                                     compressed_2_size=compressed_encoded_string)
+            smallest_rows = ncds.nsmallest(k, "NCD", keep="all")
+            # print(f"\n{data_2.iloc[i, 0]} - {data_2.iloc[i, 1]}")
+            # print(smallest_rows)
+            predicted_labels.append(get_label(smallest_rows, "Type1"))
+    # print(predicted_labels)
+    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=["Water", "Fire", "Grass", "Rock"])
+    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique())
+    # print(conf_mat)
+    print(f"Accuracy = {metrics.accuracy_score(test_data['Type1'], predicted_labels)}")
+    metrics.ConfusionMatrixDisplay.from_predictions(test_data["Type1"], predicted_labels,
+                                                    labels=test_data['Type1'].unique(), xticks_rotation="vertical")
+    plt.show()
+
+    return
+
+
+def main():
+    # classify_one_gen()
+    classify_any()
 
 
 if __name__ == '__main__':
