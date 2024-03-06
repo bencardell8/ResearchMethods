@@ -1,5 +1,4 @@
 import os
-import base64
 import pandas as pd
 import numpy as np
 import zlib
@@ -8,7 +7,7 @@ import bz2
 from PIL import Image
 import timeit
 from sklearn.model_selection import train_test_split
-from sklearn import metrics
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
 
@@ -17,8 +16,8 @@ csv_data_1_file = "gen_1.csv"
 csv_data_2_file = "gen_2.csv"
 img_data_dir = "img_data/"
 compressed_img_dir = "compressed_img/"
-zip_type = "zlib"
-k = 5
+zip_type = "zlib"  # zlib, gzip, bz2
+# k = 11
 
 
 def read_data_from_csv(file_name: str, delimiter=',', columns_to_drop=None):
@@ -75,21 +74,6 @@ def img_vectorise(name):
     return vector_string
 
 
-# def img_stringify(name):
-#     img_name = ""
-#     if os.path.exists(img_data_dir + name + ".png"):
-#         img_name = name+".png"
-#     elif os.path.exists(img_data_dir + name + ".jpg"):
-#         img_name = name+".jpg"
-#     else:
-#         FileNotFoundError("No file with " + name + " found.")
-#
-#     with open(img_data_dir+img_name, "rb") as image2string:
-#         img_str = base64.b64encode(image2string.read())
-#
-#     return img_str
-
-
 def normalised_compression_distance(string_1, string_2, compressed_2_size):
     compressed_1_size = None
     compressed_1_2_size = None
@@ -107,18 +91,21 @@ def normalised_compression_distance(string_1, string_2, compressed_2_size):
         compressed_1_2_size = len(bz2.compress(encoded_string_1_2))
     else:
         ValueError(f"{zip_type} not a valid format")
-    # print(f"1 = {compressed_1_size}")
-    # print(f"2 = {compressed_2_size}")
-    # print(f"1_2 = {compressed_1_2_size}")
+
     ncd = (compressed_1_2_size - min(compressed_1_size, compressed_2_size)) / max(compressed_1_size, compressed_2_size)
-    # print(f"{ncd}")
     return ncd
 
 
-def get_label(rows: pd.DataFrame, column_name: str):
-    label = ""
+def get_label(rows: pd.DataFrame, column_name: str, weighted_column_name=None):
     if len(rows[column_name].unique()) == len(rows):
-        label = rows.iloc[0, 0]
+        return rows.iloc[0, 0]
+    if weighted_column_name is not None:
+        highest_value = rows[weighted_column_name].max()
+        weighted_values = highest_value - rows[weighted_column_name]
+        weighted_dataframe = pd.DataFrame({column_name: rows[column_name],
+                                           "weighted_values": weighted_values})
+        sums = weighted_dataframe.groupby(by=column_name).sum().reset_index()
+        label = sums[sums["weighted_values"] == sums["weighted_values"].max()][column_name].iloc[0]
     else:
         most_frequents = rows[column_name].mode()
         label = most_frequents[0]
@@ -126,118 +113,90 @@ def get_label(rows: pd.DataFrame, column_name: str):
     return label
 
 
-def classify_one_gen():
-    start = timeit.default_timer()
-    data_1: pd.DataFrame = read_data_from_csv(csv_data_1_file)
-    # data_2: pd.DataFrame = read_data_from_csv(csv_data_2_file)
-    data_2: pd.DataFrame = read_data_from_csv(csv_data_1_file)
-    # Fire, Water, Grass, Rock
-    # data_1.drop(data_1[(data_1["Type1"] == "Dragon") | (data_1["Type1"] == "Fairy") | (data_1["Type1"] == "Ice") |
-    #                    (data_1["Type1"] == "Ghost")].index, inplace=True)
-    # data_2.drop(data_2[(data_2["Type1"] == "Dragon") | (data_2["Type1"] == "Fairy") | (data_2["Type1"] == "Ice") |
-    #                    (data_2["Type1"] == "Ghost")].index, inplace=True)
-    print(data_1["Type1"].value_counts())
-    data_1.drop(data_1[(data_1["Type1"] != "Normal") & (data_1["Type1"] != "Poison") & (data_1["Type1"] != "Water") &
-                       (data_1["Type1"] != "Grass")].index, inplace=True)
-    data_2.drop(data_2[(data_2["Type1"] != "Normal") & (data_2["Type1"] != "Poison") & (data_2["Type1"] != "Water") &
-                       (data_2["Type1"] != "Grass")].index, inplace=True)
-    print(data_1["Type1"].value_counts())
-
-    data_1.reset_index(drop=True, inplace=True)
-    data_2.reset_index(drop=True, inplace=True)
-
-    ncds = pd.DataFrame(data=data_1["Type1"])
-    data_1["ImgStr"] = data_1["Name"].apply(img_vectorise)
-    data_2["ImgStr"] = data_2["Name"].apply(img_vectorise)
-    # print(data_1)
-    # print(data_1)
-    # unique_labels = pd.unique(data_1["Type1"])
-    # group_dict = {}
-    # for label in unique_labels:
-    #     group_dict[label] = data_1.loc[data_1["Type1"] == label, "ImgStr"]
-    #     # Shuffles the data
-    #     # group_dict[label] = group_dict[label].sample(frac=1).reset_index(drop=True)
-    predicted_labels = []
-    for i in range(len(data_2)):
-        if zip_type == "zlib":
-            string: str = data_2.iloc[i, 2]
-            encoded_string = string.encode()
-            compressed_encoded_string = len(zlib.compress(encoded_string))
-            ncds["NCD"] = data_1["ImgStr"].apply(normalised_compression_distance, string_2=string,
-                                                 compressed_2_size=compressed_encoded_string)
-            smallest_rows = ncds.nsmallest(k, "NCD", keep="all")
-            # print(f"\n{data_2.iloc[i, 0]} - {data_2.iloc[i, 1]}")
-            print(smallest_rows)
-            predicted_labels.append(get_label(smallest_rows, "Type1"))
-    # print(predicted_labels)
-    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=["Water", "Fire", "Grass", "Rock"])
-    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique())
-    # print(conf_mat)
-    stop = timeit.default_timer()
-    print('Time taken: ', stop - start)
-    print(f"Accuracy = {metrics.accuracy_score(data_2['Type1'], predicted_labels)}")
-    metrics.ConfusionMatrixDisplay.from_predictions(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique(),
-                                                    xticks_rotation="vertical")
+def get_accuracy_and_confusion_matrix(test_labels, predicted_labels):
+    print(f"Accuracy = {accuracy_score(test_labels, predicted_labels)}")
+    ConfusionMatrixDisplay.from_predictions(test_labels, predicted_labels,
+                                            labels=test_labels.unique(), xticks_rotation="vertical")
     plt.show()
-    return
+    plt.close()
 
 
-def classify_any():
+def classify_pokemon(gen="all", weighting=None, k=1):
     start = timeit.default_timer()
-    data: pd.DataFrame = read_data_from_csv(csv_full_data_file)
-    data.drop(columns="Type2", inplace=True)
-    print(data["Type1"].value_counts())
-    data.drop(data[(data["Type1"] != "Normal") & (data["Type1"] != "Bug") & (data["Type1"] != "Water") &
-                   (data["Type1"] != "Grass")].index, inplace=True)
-    data.reset_index(drop=True, inplace=True)
-    train_data, test_data, val_data = split_dataframe_to_train_test(data, "Type1", 0.3)
-    print("train data : ")
-    print(train_data)
-    print(train_data["Type1"].value_counts())
-    print("test data : ")
-    print(test_data)
-    print(test_data["Type1"].value_counts())
-    ncds = pd.DataFrame(data=data["Type1"])
+    train_data = pd.DataFrame(None)
+    test_data = pd.DataFrame(None)
+    if gen == "all":
+        data: pd.DataFrame = read_data_from_csv(csv_full_data_file)
+        data.drop(columns="Type2", inplace=True)
+        # print(data["Type1"].value_counts())
+        data.drop(data[(data["Type1"] != "Normal") & (data["Type1"] != "Bug") & (data["Type1"] != "Water") &
+                       (data["Type1"] != "Grass")].index, inplace=True)
+        train_data, test_data, val_data = split_dataframe_to_train_test(data, "Type1", 0.3, random=0)
+        train_data.reset_index(drop=True, inplace=True)
+        test_data.reset_index(drop=True, inplace=True)
+    elif gen == "few":
+        train_data: pd.DataFrame = read_data_from_csv(csv_data_1_file)
+        test_data: pd.DataFrame = read_data_from_csv(csv_data_2_file)
+        # Remove data instances where the Type 1 values are not Normal, Poison, Water, or Grass.
+        train_data.drop(train_data[(train_data["Type1"] != "Normal") & (train_data["Type1"] != "Poison") &
+                                   (train_data["Type1"] != "Water")  & (train_data["Type1"] != "Grass")].index,
+                        inplace=True)
+        test_data.drop(test_data[(test_data["Type1"] != "Normal") & (test_data["Type1"] != "Poison") &
+                                 (test_data["Type1"] != "Water") & (test_data["Type1"] != "Grass")].index,
+                       inplace=True)
+        train_data.reset_index(drop=True, inplace=True)
+        test_data.reset_index(drop=True, inplace=True)
+    else:
+        ValueError(f"{gen} not a valid parameter")
+        return
+    ncds = pd.DataFrame(data=train_data["Type1"])
+    # Current dataframe has columns: [Name, Type1, ImgStr]
     train_data["ImgStr"] = train_data["Name"].apply(img_vectorise)
     test_data["ImgStr"] = test_data["Name"].apply(img_vectorise)
 
     predicted_labels = []
+
+    # For each instance of the test data
     for i in range(len(test_data)):
+        # Get the string representation of the test data image
         string: str = test_data.iloc[i, 2]
+        # Encode the string
         encoded_string = string.encode()
+
+        # Compress the string to get the length of the compressed string
         if zip_type == "zlib":
             compressed_encoded_string = len(zlib.compress(encoded_string))
         elif zip_type == "gzip":
             compressed_encoded_string = len(gzip.compress(encoded_string))
         else:
             compressed_encoded_string = len(bz2.compress(encoded_string))
+
+        # Calculate the NCDs of the instance and all train data
         ncds["NCD"] = train_data["ImgStr"].apply(normalised_compression_distance, string_2=string,
                                                  compressed_2_size=compressed_encoded_string)
         smallest_rows = ncds.nsmallest(k, "NCD", keep="all")
         # print(f"\n{data_2.iloc[i, 0]} - {data_2.iloc[i, 1]}")
         # print(smallest_rows)
-        predicted_labels.append(get_label(smallest_rows, "Type1"))
-    # print(predicted_labels)
-    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=["Water", "Fire", "Grass", "Rock"])
-    # conf_mat = metrics.confusion_matrix(data_2["Type1"], predicted_labels, labels=data_2['Type1'].unique())
-    # print(conf_mat)
+        predicted_labels.append(get_label(smallest_rows, column_name="Type1", weighted_column_name=weighting))
+
     stop = timeit.default_timer()
     print('Time taken: ', stop - start)
-    print(f"Accuracy = {metrics.accuracy_score(test_data['Type1'], predicted_labels)}")
-    metrics.ConfusionMatrixDisplay.from_predictions(test_data["Type1"], predicted_labels,
-                                                    labels=test_data['Type1'].unique(), xticks_rotation="vertical")
-    plt.show()
-
-    return
+    get_accuracy_and_confusion_matrix(test_data["Type1"], predicted_labels)
+    return 0
 
 
 def main():
-    # classify_one_gen()
-    classify_any()
+    for k in range(1, 13, 2):
+        # print(f"Gen 1 and 2 with majority voting classification using {k} nearest neighbours")
+        # classify_pokemon(gen="few", weighting=None, k=k)
+        # print(f"Gen 1 and 2 with weighted voting classification using {k} nearest neighbours")
+        # classify_pokemon(gen="few", weighting="NCD", k=k)
+        # print(f"All gens with majority voting classification using {k} nearest neighbours")
+        # classify_pokemon(gen="all", weighting=None, k=k)
+        # print(f"All gens with weighted voting classification using {k} nearest neighbours")
+        # classify_pokemon(gen="all", weighting="NCD", k=k)
 
 
 if __name__ == '__main__':
-
     main()
-
 
