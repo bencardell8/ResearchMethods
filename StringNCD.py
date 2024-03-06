@@ -2,7 +2,7 @@ import zlib
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn import metrics
@@ -117,7 +117,7 @@ for j in range(len(X_test)):
   
   #print(y_train.iloc[i], y_test.iloc[j], ncd)
 NCDs = pd.DataFrame(data, columns=['Index', 'Train_Genre', 'Test_Genre', 'NCD'])
-print(NCDs)
+#print(NCDs)
 
 
 #print(len(X_test))
@@ -126,7 +126,7 @@ print(NCDs)
 #print(NCDs)
 #print(NCDs.min(axis=0))
 smallest_rows = NCDs.nsmallest(10, "NCD", keep="all")
-print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].min()])
+#print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].min()])
 
 # NCDs_sorted = NCDs.sort_values(by='NCD')
 # top_10_ncd_per_index = NCDs_sorted.groupby('Index').head(10)
@@ -160,5 +160,7 @@ print(mode_per_index)
 #print(X_train.iloc[1:3].to_string(header=False, index=True))
 
 metrics.ConfusionMatrixDisplay.from_predictions(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'], labels=mode_per_index['Test_Genre'].unique(), xticks_rotation="vertical")
+print(f"Accuracy = {accuracy_score(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'])}")
 plt.show()
+
 
