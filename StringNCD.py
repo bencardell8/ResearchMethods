@@ -30,7 +30,7 @@ y= booksDS['genre']
 min_count = min(y.value_counts())
 
 #trim dataframe down to balanced number of data
-#balanced_booksDS = pd.concat([booksDS[booksDS['genre'] == label].sample(min_count) for label in booksDS['genre'].unique()])
+balanced_booksDS = pd.concat([booksDS[booksDS['genre'] == label].sample(min_count) for label in booksDS['genre'].unique()])
 
 
 #Train-test split. Random_state used for reproducability of results. Test_size of 0.2 means test size is 0.2 of population.
@@ -86,7 +86,7 @@ for i in range(len(X_train)):
     ncd_list = []
 
     seq1 = (X_train.iloc[i].to_string(header=False, index=False)).encode('utf-8')
-    seq2 = (X_test.iloc[2].to_string(header=False, index=False)).encode('utf-8')
+    seq2 = (X_test.iloc[7].to_string(header=False, index=False)).encode('utf-8')
 
     seq1_compressed = len(zlib.compress(seq1))
     seq2_compressed = len(zlib.compress(seq2))
@@ -98,15 +98,15 @@ for i in range(len(X_train)):
     #values = {'X_train_Genre': y_train, 'X_test_Genre': y_test, 'NCD': ncd}
     #NCDs = NCDs.append(values, ignore_index = True)  
 
-    NCDs.loc[len(NCDs.index)] = [y_train.iloc[i], y_test.iloc[2], ncd]  
+    NCDs.loc[len(NCDs.index)] = [y_train.iloc[i], y_test.iloc[7], ncd]  
 
     i+=1
 
-print(NCDs)
+#print(NCDs)
 #print(NCDs.min(axis=0))
-
-print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].min()])
-
+smallest_rows = NCDs.nsmallest(10, "NCD", keep="all")
+print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].max()])
+#print(smallest_rows)
 #print("Test data genre: " + y_test.iloc[1])    
 
 #print(X_train.iloc[1:3].to_string(header=False, index=True))
