@@ -115,10 +115,10 @@ def get_label(rows: pd.DataFrame, column_name: str, weighted_column_name=None):
 
 def get_accuracy_and_confusion_matrix(test_labels, predicted_labels):
     print(f"Accuracy = {accuracy_score(test_labels, predicted_labels)}")
-    ConfusionMatrixDisplay.from_predictions(test_labels, predicted_labels,
-                                            labels=test_labels.unique(), xticks_rotation="vertical")
-    plt.show()
-    plt.close()
+    # ConfusionMatrixDisplay.from_predictions(test_labels, predicted_labels,
+    #                                         labels=test_labels.unique(), xticks_rotation="vertical")
+    # plt.show()
+    # plt.close()
 
 
 def classify_pokemon(gen="all", weighting=None, k=1):
@@ -193,8 +193,8 @@ def main():
         # classify_pokemon(gen="few", weighting="NCD", k=k)
         # print(f"All gens with majority voting classification using {k} nearest neighbours")
         # classify_pokemon(gen="all", weighting=None, k=k)
-        # print(f"All gens with weighted voting classification using {k} nearest neighbours")
-        # classify_pokemon(gen="all", weighting="NCD", k=k)
+        print(f"All gens with weighted voting classification using {k} nearest neighbours")
+        classify_pokemon(gen="all", weighting="NCD", k=k)
 
 
 if __name__ == '__main__':
