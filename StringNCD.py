@@ -33,7 +33,7 @@ min_count = min(y.value_counts())
 balanced_booksDS = pd.concat([booksDS[booksDS['genre'] == label].sample(min_count) for label in booksDS['genre'].unique()])
 
 
-#Train-test split. Random_state used for reproducability of results. Test_size of 0.2 means test size is 0.2 of population.
+#Train-test split. Random_state used for reproducability of results_zlib. Test_size of 0.2 means test size is 0.2 of population.
 X_train, X_test, y_train, y_test = train_test_split(booksDS[['summary']], booksDS['genre'], test_size=0.2, random_state=1, stratify=booksDS['genre'])
 
 

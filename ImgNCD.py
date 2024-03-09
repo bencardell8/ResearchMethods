@@ -16,7 +16,7 @@ csv_data_1_file = "gen_1.csv"
 csv_data_2_file = "gen_2.csv"
 img_data_dir = "img_data/"
 compressed_img_dir = "compressed_img/"
-zip_type = "zlib"  # zlib, gzip, bz2
+zip_type = "bz2"  # zlib, gzip, bz2
 # k = 11
 
 
@@ -61,13 +61,17 @@ def img_vectorise(name):
     else:
         FileNotFoundError("No file with " + name + " found.")
 
+    # Open the image
     img = Image.open(img_data_dir+img_name)
+    # Convert the image into a 2D array using the pixel colour values
     img_vector = np.asarray(img)
     # norm_img = img.convert("P", palette=Image.ADAPTIVE, colors=8)
     # img_vector = np.asarray(norm_img)
+    # Reshape to a 1D array
     image_1d = img_vector.reshape(-1)
     # print(f"Vector {img_vector}")
     # vector_string = np.array2string(img_vector)
+    # Convert the contents of the 1D array into a string
     vector_string = ''.join([str(num) for num in image_1d])
     # print(vector_string)
 
@@ -115,26 +119,32 @@ def get_label(rows: pd.DataFrame, column_name: str, weighted_column_name=None):
 
 def get_accuracy_and_confusion_matrix(test_labels, predicted_labels):
     print(f"Accuracy = {accuracy_score(test_labels, predicted_labels)}")
-    # ConfusionMatrixDisplay.from_predictions(test_labels, predicted_labels,
-    #                                         labels=test_labels.unique(), xticks_rotation="vertical")
-    # plt.show()
-    # plt.close()
+    ConfusionMatrixDisplay.from_predictions(test_labels, predicted_labels,
+                                            labels=test_labels.unique(), xticks_rotation="vertical")
+    plt.show()
+    plt.close()
 
 
 def classify_pokemon(gen="all", weighting=None, k=1):
+    # Get the start time that the algorithm runs
     start = timeit.default_timer()
     train_data = pd.DataFrame(None)
     test_data = pd.DataFrame(None)
+    # Sample the data from all of the population
     if gen == "all":
         data: pd.DataFrame = read_data_from_csv(csv_full_data_file)
         data.drop(columns="Type2", inplace=True)
         # print(data["Type1"].value_counts())
         data.drop(data[(data["Type1"] != "Normal") & (data["Type1"] != "Bug") & (data["Type1"] != "Water") &
                        (data["Type1"] != "Grass")].index, inplace=True)
+        # Split the data
+        print(data)
         train_data, test_data, val_data = split_dataframe_to_train_test(data, "Type1", 0.3, random=0)
         train_data.reset_index(drop=True, inplace=True)
         test_data.reset_index(drop=True, inplace=True)
+    # Use the Gen 1 pokemon as "train" data and Gen 2 pokemon as "test" data
     elif gen == "few":
+        # All ready splitted as Gen 1 and Gen 2. There will be smaller sample size compared to all gen
         train_data: pd.DataFrame = read_data_from_csv(csv_data_1_file)
         test_data: pd.DataFrame = read_data_from_csv(csv_data_2_file)
         # Remove data instances where the Type 1 values are not Normal, Poison, Water, or Grass.
@@ -150,10 +160,11 @@ def classify_pokemon(gen="all", weighting=None, k=1):
         ValueError(f"{gen} not a valid parameter")
         return
     ncds = pd.DataFrame(data=train_data["Type1"])
-    # Current dataframe has columns: [Name, Type1, ImgStr]
+
+    # Get each row's images and convert to string
     train_data["ImgStr"] = train_data["Name"].apply(img_vectorise)
     test_data["ImgStr"] = test_data["Name"].apply(img_vectorise)
-
+    # Current dataframe has columns: [Name, Type1, ImgStr]
     predicted_labels = []
 
     # For each instance of the test data
@@ -186,15 +197,22 @@ def classify_pokemon(gen="all", weighting=None, k=1):
 
 
 def main():
-    for k in range(1, 13, 2):
-        # print(f"Gen 1 and 2 with majority voting classification using {k} nearest neighbours")
-        # classify_pokemon(gen="few", weighting=None, k=k)
-        # print(f"Gen 1 and 2 with weighted voting classification using {k} nearest neighbours")
-        # classify_pokemon(gen="few", weighting="NCD", k=k)
-        # print(f"All gens with majority voting classification using {k} nearest neighbours")
-        # classify_pokemon(gen="all", weighting=None, k=k)
-        print(f"All gens with weighted voting classification using {k} nearest neighbours")
-        classify_pokemon(gen="all", weighting="NCD", k=k)
+
+    print(f"Gen 1 and 2 with majority voting classification using {9} nearest neighbours")
+    classify_pokemon(gen="few", weighting=None, k=9)
+
+    # for k in range(1, 13, 2):
+    #     print(f"Gen 1 and 2 with majority voting classification using {k} nearest neighbours")
+    #     classify_pokemon(gen="few", weighting=None, k=k)
+    #
+    #     print(f"Gen 1 and 2 with weighted voting classification using {k} nearest neighbours")
+    #     classify_pokemon(gen="few", weighting="NCD", k=k)
+    #
+    #     print(f"All gens with majority voting classification using {k} nearest neighbours")
+    #     classify_pokemon(gen="all", weighting=None, k=k)
+    #
+    #     print(f"All gens with weighted voting classification using {k} nearest neighbours")
+    #     classify_pokemon(gen="all", weighting="NCD", k=k)
 
 
 if __name__ == '__main__':
