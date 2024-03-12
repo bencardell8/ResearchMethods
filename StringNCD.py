@@ -6,8 +6,10 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_s
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn import metrics
+import bz2
+import timeit
 
-
+start = timeit.default_timer()
 #Remove truncation of long values (do not run with whole dataset!!)
 #pd.set_option('display.max_colwidth', None)
 
@@ -97,9 +99,12 @@ for j in range(len(X_test)):
       seq1 = (X_train.iloc[i].to_string(header=False, index=False)).encode('utf-8')
       
 
-      seq1_compressed = len(zlib.compress(seq1))
-      seq2_compressed = len(zlib.compress(seq2))
-      seqs_compressed = len(zlib.compress(seq1 + seq2))
+      # seq1_compressed = len(zlib.compress(seq1))
+      # seq2_compressed = len(zlib.compress(seq2))
+      # seqs_compressed = len(zlib.compress(seq1 + seq2))
+      seq1_compressed = len(bz2.compress(seq1))
+      seq2_compressed = len(bz2.compress(seq2))
+      seqs_compressed = len(bz2.compress(seq1 + seq2))
       ncd = (seqs_compressed - min(seq1_compressed,seq2_compressed)) / max(seq1_compressed,seq2_compressed)
 
 
@@ -125,42 +130,51 @@ NCDs = pd.DataFrame(data, columns=['Index', 'Train_Genre', 'Test_Genre', 'NCD'])
 
 #print(NCDs)
 #print(NCDs.min(axis=0))
-smallest_rows = NCDs.nsmallest(10, "NCD", keep="all")
-#print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].min()])
-
-# NCDs_sorted = NCDs.sort_values(by='NCD')
-# top_10_ncd_per_index = NCDs_sorted.groupby('Index').head(10)
-# top_10_ncd_per_index_sorted = top_10_ncd_per_index.sort_values(['Index', 'NCD'])
-# pd.set_option('display.max_rows', None)
-# print(top_10_ncd_per_index_sorted)
-
-top_10_ncds = NCDs.groupby('Index').apply(lambda NCDs: NCDs.nsmallest(10, 'NCD')).reset_index(drop=True)
-pd.set_option('display.max_rows', None)
-#print(top_10_ncds)
-
-mode_per_index = top_10_ncds.groupby('Index')['Train_Genre'].apply(lambda x: x.mode().iloc[0])
-#print(mode_per_index)
-
-#NCDs['Train_Genre'] = NCDs['Index'].map(mode_per_index)
-#print(NCDs)
-
-#predicted_label = 
+k = 1
 
 
-mode_per_index = top_10_ncds.groupby('Index').agg({
-    'Train_Genre': lambda x: x.mode().iloc[0],
-    'Test_Genre': lambda x: x.iloc[0]  # Assuming 'Test_genre' is the same for each 'index'
-})
+for i in range(6):
+  #smallest_rows = NCDs.nsmallest(k, "NCD", keep="all")
+  #print(NCDs.loc[NCDs['NCD'] == NCDs['NCD'].min()])
 
-predicted = pd.merge(top_10_ncds, mode_per_index, on='Index')
-print(mode_per_index)
-#print(smallest_rows)
-#print("Test data genre: " + y_test.iloc[1])    
+  # NCDs_sorted = NCDs.sort_values(by='NCD')
+  # top_10_ncd_per_index = NCDs_sorted.groupby('Index').head(10)
+  # top_10_ncd_per_index_sorted = top_10_ncd_per_index.sort_values(['Index', 'NCD'])
+  # pd.set_option('display.max_rows', None)
+  # print(top_10_ncd_per_index_sorted)
 
-#print(X_train.iloc[1:3].to_string(header=False, index=True))
+  top_10_ncds = NCDs.groupby('Index').apply(lambda NCDs: NCDs.nsmallest(k, 'NCD')).reset_index(drop=True)
+  pd.set_option('display.max_rows', None)
+  #print(top_10_ncds)
+  stop = timeit.default_timer()
+  print('Time taken for ', k, 'NN: ', stop - start)
 
-metrics.ConfusionMatrixDisplay.from_predictions(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'], labels=mode_per_index['Test_Genre'].unique(), xticks_rotation="vertical")
-print(f"Accuracy = {accuracy_score(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'])}")
-plt.show()
+  mode_per_index = top_10_ncds.groupby('Index')['Train_Genre'].apply(lambda x: x.mode().iloc[0])
+  #print(mode_per_index)
+
+  #NCDs['Train_Genre'] = NCDs['Index'].map(mode_per_index)
+  #print(NCDs)
+
+  #predicted_label = 
+
+
+  mode_per_index = top_10_ncds.groupby('Index').agg({
+      'Train_Genre': lambda x: x.mode().iloc[0],
+      'Test_Genre': lambda x: x.iloc[0]  # Assuming 'Test_genre' is the same for each 'index'
+  })
+
+  predicted = pd.merge(top_10_ncds, mode_per_index, on='Index')
+
+  #print(mode_per_index)
+
+  #print(smallest_rows)
+  #print("Test data genre: " + y_test.iloc[1])    
+
+  #print(X_train.iloc[1:3].to_string(header=False, index=True))
+
+  metrics.ConfusionMatrixDisplay.from_predictions(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'], labels=mode_per_index['Test_Genre'].unique(), xticks_rotation="vertical")
+  print("Accuracy for ", k, "NN:", {accuracy_score(mode_per_index['Test_Genre'], mode_per_index['Train_Genre'])})
+  plt.show()
+  k = k + 2
 
 
