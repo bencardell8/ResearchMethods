@@ -1,0 +1,17 @@
+Time taken for  1 NN:  492.5568437000002
+Accuracy for  1 NN: {0.24833333333333332}
+
+Time taken for  3 NN:  529.8621671000001
+Accuracy for  3 NN: {0.26666666666666666}
+
+Time taken for  5 NN:  542.8492535999994
+Accuracy for  5 NN: {0.265}
+
+Time taken for  7 NN:  551.2838868999997
+Accuracy for  7 NN: {0.24833333333333332}
+
+Time taken for  9 NN:  558.9999057999994
+Accuracy for  9 NN: {0.24666666666666667}
+
+Time taken for  11 NN:  566.0176205999996
+Accuracy for  11 NN: {0.24166666666666667}

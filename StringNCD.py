@@ -99,12 +99,12 @@ for j in range(len(X_test)):
       seq1 = (X_train.iloc[i].to_string(header=False, index=False)).encode('utf-8')
       
 
-      # seq1_compressed = len(zlib.compress(seq1))
-      # seq2_compressed = len(zlib.compress(seq2))
-      # seqs_compressed = len(zlib.compress(seq1 + seq2))
-      seq1_compressed = len(bz2.compress(seq1))
-      seq2_compressed = len(bz2.compress(seq2))
-      seqs_compressed = len(bz2.compress(seq1 + seq2))
+      seq1_compressed = len(zlib.compress(seq1))
+      seq2_compressed = len(zlib.compress(seq2))
+      seqs_compressed = len(zlib.compress(seq1 + seq2))
+      # seq1_compressed = len(bz2.compress(seq1))
+      # seq2_compressed = len(bz2.compress(seq2))
+      # seqs_compressed = len(bz2.compress(seq1 + seq2))
       ncd = (seqs_compressed - min(seq1_compressed,seq2_compressed)) / max(seq1_compressed,seq2_compressed)
 
 
